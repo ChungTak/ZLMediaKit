@@ -10,3 +10,13 @@
 [submodule "www/webassist"]
 	path = www/webassist
 	url = https://gitee.com/victor1002/zlm_webassist
+
+[submodule "3rdparty/openssl"]
+	path = 3rdparty/openssl
+	url = https://github.com/openssl/openssl.git
+	branch = openssl-3.4
+
+[submodule "3rdparty/libsrtp"]
+	path = 3rdparty/libsrtp
+	url = https://github.com/cisco/libsrtp.git
+	branch = v2.4.2
