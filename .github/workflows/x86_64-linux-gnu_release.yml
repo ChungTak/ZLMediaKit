@@ -15,9 +15,9 @@ jobs:
       matrix:
         target: 
           - x86_64-linux-gnu
-          - aarch64-linux-gnu
-          - aarch64-linux-android
-          - riscv64-linux-gnu
+          # - aarch64-linux-gnu
+          # - aarch64-linux-android
+          # - riscv64-linux-gnu
     env:
       BUILD_DATE: ${{ github.workflow }}-${{ github.run_id }}-$(date -u +'%Y_%m_%d')
 
