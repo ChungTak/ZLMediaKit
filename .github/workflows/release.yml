@@ -1,0 +1,98 @@
+name: Release Build
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      # 检出最新 master 分支代码
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          ref: master
+
+      # 安装 Android NDK 21 (以 r21e 为例)
+      - name: Install Android NDK 21
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip
+          unzip android-ndk-r21e-linux-x86_64.zip -d .
+          mv android-ndk-r21e android-ndk
+          echo "ANDROID_NDK_HOME=$(pwd)/android-ndk" >> $GITHUB_ENV
+
+      # 安装编译环境：cmake 和 make
+      - name: Install Build Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake make
+
+      # 安装 Zig 0.14.0 并将其添加到 PATH 中
+      - name: Install Zig 0.14.0
+        run: |
+          wget https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz
+          tar -xf zig-linux-x86_64-0.14.0.tar.xz
+          echo "$(pwd)/zig-linux-x86_64-0.14.0" >> $GITHUB_PATH
+
+      # 安装交叉编译依赖
+      - name: Install Cross Compile Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-riscv64-linux-gnu libc6-dev-riscv64-cross
+
+      # 获取当前日期 (格式: 2025_03_24)
+      - name: Set Build Date
+        run: echo "BUILD_DATE=$(date +%Y_%m_%d)" >> $GITHUB_ENV
+
+      # 循环处理多个交叉编译 target 并执行各编译脚本、打包
+      - name: Build and Package Targets
+        run: |
+          # 定义交叉编译 target 列表
+          chmod +x ./zig-build/*.sh
+          targets=("x86_64-linux-gnu" "aarch64-linux-gnu" "aarch64-linux-android" "riscv64-linux-gnu")
+          for target in "${targets[@]}"; do
+            echo "==============================="
+            echo "Start building for target: $target"
+            echo "==============================="
+
+            # 执行 OpenSSL 编译脚本
+            ./zig-build/build_openssl.sh --target=$target
+
+            # 执行 libsrtp 编译脚本
+            ./zig-build/build_libsrtp.sh --target=$target
+
+            # 执行 zlm 编译脚本
+            ./zig-build/build_zlm.sh --target=$target
+
+            # 处理输出目录，根据不同 target 选择 linux 或 android 目录
+            if [[ "$target" == "aarch64-linux-android" || "$target" == "riscv64-linux-gnu" ]]; then
+              OUTPUT_DIR="release/android/ReleaseSmall"
+            else
+              OUTPUT_DIR="release/linux/ReleaseSmall"
+            fi
+
+            # 确保输出目录存在
+            if [[ -d "$OUTPUT_DIR" ]]; then
+              # 生成带时间戳的文件名
+              RELEASE_NAME="ZLMediaKit_${target}_${BUILD_DATE}.tar.gz"
+
+              # 复制并重命名
+              mv "$OUTPUT_DIR" "release/${RELEASE_NAME}"
+
+              # 进行打包
+              tar -czvf "release/${RELEASE_NAME}" "release/${RELEASE_NAME}"
+            else
+              echo "Warning: Output directory $OUTPUT_DIR does not exist, skipping packaging for $target."
+            fi
+          done
+
+      # 上传所有打包后的构建产物
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-artifacts
+          path: |
+            release/ZLMediaKit_*.tar.gz
