@@ -71,7 +71,7 @@ if [[ ! -d "$OPENSSL_INSTALL_DIR" || -z "$(ls -A $OPENSSL_INSTALL_DIR)"  ]]; the
     CURRENT_DIR=$(pwd)
     
     # 执行构建OpenSSL脚本
-    cd "$SCRIPT_DIR"
+    # cd "$SCRIPT_DIR"
     bash "$SCRIPT_DIR/build_openssl.sh" "--target=$TARGET"
     
     # 检查构建结果
@@ -97,7 +97,7 @@ if [ "$ENABLE_WEBRTC" = true ]; then
         CURRENT_DIR=$(pwd)
         
         # 执行构建libsrtp脚本
-        cd "$SCRIPT_DIR"
+        # cd "$SCRIPT_DIR"
         bash "$SCRIPT_DIR/build_libsrtp.sh" "--target=$TARGET"
         
         # 检查构建结果
