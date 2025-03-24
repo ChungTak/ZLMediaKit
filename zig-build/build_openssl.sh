@@ -68,19 +68,19 @@ case $TARGET in
   x86_64-linux-*)
     OPENSSL_TARGET="linux-x86_64"
     ;;
-  aarch64-linux-*)
+  aarch64-linux-gnu)
     OPENSSL_TARGET="linux-aarch64"
     ;;
   riscv64-linux-*)
     OPENSSL_TARGET="linux64-riscv64"
     ;;
-  arm-linux-*)
+  arm-linux-gnu)
     OPENSSL_TARGET="linux-armv4"
     ;;
-  x86_64-windows-gnu*)
+  x86_64-windows-gnu)
     OPENSSL_TARGET="mingw64"
     ;;    
-  aarch64-android)
+  aarch64-linux-android)
     OPENSSL_TARGET="android-arm64"
     source ./zig-build/build_android_env.sh
     ;;
@@ -88,7 +88,7 @@ case $TARGET in
     OPENSSL_TARGET="android-x86_64"
     source ./zig-build/build_android_env.sh
     ;;
-  arm-android)
+  arm-linux-android)
     OPENSSL_TARGET="android-arm"
     source ./zig-build/build_android_env.sh
     ;;

@@ -68,13 +68,13 @@ case $TARGET in
   x86_64-linux-*)
     LIBSRTP_TARGET="x86_64-pc-linux-gnu​"
     ;;
-  aarch64-linux-*)
+  aarch64-linux-gnu)
     LIBSRTP_TARGET="aarch64-unknown-linux-gnu​"
     ;;
   riscv64-linux-*)
     LIBSRTP_TARGET="riscv64-unknown-linux-gnu"
     ;;
-  arm-linux-*)
+  arm-linux-gnu)
     LIBSRTP_TARGET="arm-unknown-linux-gnueabihf"
     ;;
   x86_64-windows-gnu*)
@@ -86,7 +86,7 @@ case $TARGET in
   aarch64-macos*)
     LIBSRTP_TARGET="arm64-apple-darwin"
     ;;            
-  aarch64-android)
+  aarch64-linux-android)
     source ./zig-build/build_android_libsrtp.sh --target=$TARGET
     exit 1  
     LIBSRTP_TARGET="aarch64-unknown-linux-android"
@@ -96,7 +96,7 @@ case $TARGET in
     exit 1  
     LIBSRTP_TARGET="x86_64-unknown-linux-android"
     ;;
-  arm-android)
+  arm-linux-android)
     source ./zig-build/build_android_libsrtp.sh --target=$TARGET
     exit 1  
     LIBSRTP_TARGET="arm-unknown-linux-androideabi"

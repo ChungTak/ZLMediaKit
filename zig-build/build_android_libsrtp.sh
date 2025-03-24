@@ -58,16 +58,16 @@ mkdir -p $INSTALL_DIR
 # 根据目标架构确定OpenSSL配置参数
 LIBSRTP_TARGET=""
 case $TARGET in
-   x86_64-linux-*)
+  x86_64-linux-gnu)
     LIBSRTP_TARGET="x86_64-pc-linux-gnu​"
     ;;
-  aarch64-linux-*)
+  aarch64-linux-gnu)
     LIBSRTP_TARGET="aarch64-unknown-linux-gnu​"
     ;;
-  riscv64-linux-*)
+  riscv64-linux-gnu)
     LIBSRTP_TARGET="riscv64-unknown-linux-gnu"
     ;;
-  arm-linux-*)
+  arm-linux-gnu)
     LIBSRTP_TARGET="arm-unknown-linux-gnueabihf"
     ;;
   x86_64-windows-gnu*)
@@ -79,13 +79,13 @@ case $TARGET in
   aarch64-macos*)
     LIBSRTP_TARGET="arm64-apple-darwin"
     ;;            
-  aarch64-android)
+  aarch64-linux-android)
     LIBSRTP_TARGET="aarch64-unknown-linux-android"
     ;;
   x86_64-android)
     LIBSRTP_TARGET="x86_64-unknown-linux-android"
     ;;
-  arm-android)
+  arm-linux-android)
     LIBSRTP_TARGET="arm-unknown-linux-androideabi"
     ;;
   *)
