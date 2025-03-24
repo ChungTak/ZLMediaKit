@@ -8,94 +8,100 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        target: 
+          - x86_64-linux-gnu
+          - aarch64-linux-gnu
+          - aarch64-linux-android
+          - riscv64-linux-gnu
+    env:
+      BUILD_DATE: ${{ github.workflow }}-${{ github.run_id }}-$(date -u +'%Y_%m_%d')
 
     steps:
-      # 检出最新 master 分支代码
+      # 检出代码（升级到 v4）
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: master
-          
-      # 初始化 git 子模块
-      - name: Initialize Submodules
-        run: git submodule update --init
-        
-      # 安装 Android NDK 21 (以 r21e 为例)
+          submodules: recursive  # 替代单独的子模块初始化步骤
+
+      # NDK 缓存（优化下载速度）
+      - name: Cache NDK
+        uses: actions/cache@v3
+        id: ndk-cache
+        with:
+          path: |
+            android-ndk
+            android-ndk-r21e-linux-x86_64.zip
+          key: ${{ runner.os }}-ndk-r21e
+
+      # 安装 Android NDK（仅在缓存未命中时执行）
       - name: Install Android NDK 21
+        if: steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
-          wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip
-          unzip android-ndk-r21e-linux-x86_64.zip -d .
+          wget -q https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip
+          unzip -q android-ndk-r21e-linux-x86_64.zip
           mv android-ndk-r21e android-ndk
-          echo "ANDROID_NDK_HOME=$(pwd)/android-ndk" >> $GITHUB_ENV
+        env:
+          ANDROID_NDK_HOME: ${{ github.workspace }}/android-ndk
 
-      # 安装编译环境：cmake 和 make
-      - name: Install Build Tools
+      # 安装构建工具链（合并步骤）
+      - name: Install Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake make
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            cmake \
+            make \
+            gcc-riscv64-linux-gnu \
+            libc6-dev-riscv64-cross
 
-      # 安装 Zig 0.14.0 并将其添加到 PATH 中
-      - name: Install Zig 0.14.0
+      # 使用官方 Zig 安装（替代手动安装）
+      - name: Setup Zig
+        uses: korandoru/setup-zig@v1
+        with:
+          version: 0.14.0
+
+      # 构建和打包步骤（按矩阵目标执行）
+      - name: Build for ${{ matrix.target }}
         run: |
-          wget https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz
-          tar -xf zig-linux-x86_64-0.14.0.tar.xz
-          echo "$(pwd)/zig-linux-x86_64-0.14.0" >> $GITHUB_PATH
+          # 设置环境变量
+          export OUTPUT_DIR="release/$(
+            if [[ "${{ matrix.target }}" == *"android"* ]] || 
+               [[ "${{ matrix.target }}" == "riscv64-linux-gnu" ]]; then
+              echo "android"
+            else
+              echo "linux"
+            fi
+          )/ReleaseSmall"
 
-      # 安装交叉编译依赖
-      - name: Install Cross Compile Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-riscv64-linux-gnu libc6-dev-riscv64-cross
-
-      # 获取当前日期 (格式: 2025_03_24)
-      - name: Set Build Date
-        run: echo "BUILD_DATE=$(date +%Y_%m_%d)" >> $GITHUB_ENV
-
-      # 循环处理多个交叉编译 target 并执行各编译脚本、打包
-      - name: Build and Package Targets
-        run: |
-          # 定义交叉编译 target 列表
-          targets=("x86_64-linux-gnu" "aarch64-linux-gnu" "aarch64-linux-android" "riscv64-linux-gnu")
+          # 执行编译脚本
           chmod +x ./zig-build/*.sh
-          for target in "${targets[@]}"; do
-            echo "==============================="
-            echo "Start building for target: $target"
-            echo "==============================="
+          ./zig-build/build_openssl.sh --target=${{ matrix.target }}
+          ./zig-build/build_libsrtp.sh --target=${{ matrix.target }}
+          ./zig-build/build_zlm.sh --target=${{ matrix.target }}
 
-            # 执行 OpenSSL 编译脚本
-            ./zig-build/build_openssl.sh --target=$target
+          # 处理输出目录
+          if [ -d "$OUTPUT_DIR" ]; then
+            RELEASE_NAME="ZLMediaKit_${{ matrix.target }}_${{ env.BUILD_DATE }}"
+            mkdir -p release/artifacts
+            mv "$OUTPUT_DIR" "release/artifacts/$RELEASE_NAME"
+            tar -czvf "release/artifacts/$RELEASE_NAME.tar.gz" -C "release/artifacts" "$RELEASE_NAME"
+          else
+            echo "::error::Output directory $OUTPUT_DIR not found!"
+            exit 1
+          fi
 
-            # 执行 libsrtp 编译脚本
-            ./zig-build/build_libsrtp.sh --target=$target
-
-            # 执行 zlm 编译脚本
-            ./zig-build/build_zlm.sh --target=$target
-
-            # 处理输出目录，根据不同 target 选择 linux 或 android 目录
-            if [[ "$target" == "aarch64-linux-android" || "$target" == "riscv64-linux-gnu" ]]; then
-              OUTPUT_DIR="release/android/ReleaseSmall"
-            else
-              OUTPUT_DIR="release/linux/ReleaseSmall"
-            fi
-
-            # 确保输出目录存在
-            if [[ -d "$OUTPUT_DIR" ]]; then
-              # 生成带时间戳的文件名
-              RELEASE_NAME="ZLMediaKit_${target}_${BUILD_DATE}.tar.gz"
-
-              # 复制并重命名
-              mv "$OUTPUT_DIR" "release/${RELEASE_NAME}"
-
-              # 进行打包
-              tar -czvf "release/${RELEASE_NAME}" "release/${RELEASE_NAME}"
-            else
-              echo "Warning: Output directory $OUTPUT_DIR does not exist, skipping packaging for $target."
-            fi
-          done
-
-      # 上传所有打包后的构建产物
+      # 上传产物（升级到 v4）
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
-          path: release/ZLMediaKit_*.tar.gz
+          path: |
+            release/artifacts/*.tar.gz
+          retention-days: 7
+
+      # 清理工作空间（可选）
+      - name: Cleanup
+        if: always()
+        run: rm -rf android-ndk* zig-linux-*
