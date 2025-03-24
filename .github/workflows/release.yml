@@ -88,8 +88,8 @@ jobs:
 
           # 执行编译脚本
           chmod +x ./zig-build/*.sh
-          ./zig-build/build_openssl.sh --target=${{ matrix.target }}
-          ./zig-build/build_libsrtp.sh --target=${{ matrix.target }}
+          #./zig-build/build_openssl.sh --target=${{ matrix.target }}
+          #./zig-build/build_libsrtp.sh --target=${{ matrix.target }}
           ./zig-build/build_zlm.sh --target=${{ matrix.target }}
 
           # 处理输出目录
