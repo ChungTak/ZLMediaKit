@@ -14,7 +14,8 @@
 [submodule "3rdpart/openssl"]
 	path = 3rdpart/openssl
 	url = https://github.com/openssl/openssl.git
-	branch = openssl-3.4
+	branch = openssl-3.0.16
+	
 [submodule "3rdpart/libsrtp"]
 	path = 3rdpart/libsrtp
 	url = https://github.com/cisco/libsrtp.git

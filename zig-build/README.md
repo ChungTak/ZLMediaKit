@@ -23,6 +23,8 @@ cd zig-build
 
 - `x86_64-linux-gnu`: x86_64 Linux (GNU libc)
 - `aarch64-linux-gnu`: ARM64 Linux (GNU libc)
+- `aarch64-linux-android`: ARM64 Android
+- `arm-linux-android`: ARM 32-bit Android
 - `riscv64-linux-gnu`: RISC-V 64-bit Linux (GNU libc)
 - `x86_64-macos`: x86_64 macOS
 - `aarch64-macos`: ARM64 macOS
@@ -44,5 +46,6 @@ cd zig-build
 ## 注意事项
 
 - 需要安装 Zig 编译器 (https://ziglang.org/download/)
+- 初始化子模块  git submodule update --init
 - Windows无法在Linux系统下构建
 - riscv64交叉编译需要修改代码

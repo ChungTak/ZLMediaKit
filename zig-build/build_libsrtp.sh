@@ -6,15 +6,15 @@ set -e
 
 # 默认目标架构
 TARGET="x86_64-linux-gnu"
-LIBSRTP_DIR="$(pwd)/../3rdpart/libsrtp"
-INSTALL_DIR="$(pwd)/libsrtp-install-${TARGET}"
+LIBSRTP_DIR="$(pwd)/3rdpart/libsrtp"
+INSTALL_DIR="$(pwd)/zig-build/install/libsrtp/${TARGET}"
 
 # 解析命令行参数
 for arg in "$@"; do
   case $arg in
     --target=*)
       TARGET="${arg#*=}"
-      INSTALL_DIR="$(pwd)/libsrtp-install-${TARGET}"
+      INSTALL_DIR="$(pwd)/zig-build/install/libsrtp/${TARGET}"
       shift
       ;;
     --help)
@@ -25,12 +25,14 @@ for arg in "$@"; do
       echo ""
       echo "支持的目标架构示例:"
       echo "  x86_64-linux-gnu      - x86_64 Linux (GNU libc)"
-      echo "  x86_64-linux-musl     - x86_64 Linux (musl libc)"
       echo "  aarch64-linux-gnu     - ARM64 Linux (GNU libc)"
-      echo "  aarch64-linux-musl    - ARM64 Linux (musl libc)"
-      echo "  aarch64-android       - ARM64 Android"
-      echo "  x86_64-android        - x86_64 Android"
-      echo "  arm-android           - ARM 32-bit Android"
+      echo "  arm-linux-gnueabihf   - ARM 32-bit Linux (GNU libc)"
+      echo "  aarch64-linux-android     - ARM64 Android"
+      echo "  arm-linux-android         - ARM 32-bit Android"        
+      echo "  riscv64-linux-gnu     - RISC-V 64-bit Linux (GNU libc)"   
+      echo "  x86_64-windows-gnu    - x86_64 Windows (MinGW)"
+      echo "  x86_64-macos          - x86_64 macOS"
+      echo "  aarch64-macos         - ARM64 macOS"
       exit 0
       ;;
   esac
@@ -49,7 +51,7 @@ if [ ! -d "$LIBSRTP_DIR" ]; then
 fi
 
 # 检查OpenSSL是否存在
-OPENSSL_DIR="$(pwd)/openssl-install-${TARGET}"
+OPENSSL_DIR="$(pwd)/zig-build/install/openssl/${TARGET}"
 if [ ! -d "$OPENSSL_DIR" ]; then
     echo "错误: 未找到OpenSSL目录: $OPENSSL_DIR"
     echo "请先运行 build-openssl.sh --target=${TARGET} 编译OpenSSL"
@@ -59,6 +61,51 @@ fi
 # 创建安装目录
 rm -rf "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
+
+# 根据目标架构确定OpenSSL配置参数
+LIBSRTP_TARGET=""
+case $TARGET in
+  x86_64-linux-*)
+    LIBSRTP_TARGET="x86_64-pc-linux-gnu​"
+    ;;
+  aarch64-linux-*)
+    LIBSRTP_TARGET="aarch64-unknown-linux-gnu​"
+    ;;
+  riscv64-linux-*)
+    LIBSRTP_TARGET="riscv64-unknown-linux-gnu"
+    ;;
+  arm-linux-*)
+    LIBSRTP_TARGET="arm-unknown-linux-gnueabihf"
+    ;;
+  x86_64-windows-gnu*)
+    LIBSRTP_TARGET="x86_64-w64-mingw32"
+    ;;
+  x86_64-macos*)
+    LIBSRTP_TARGET="x86_64-apple-darwin"
+    ;;
+  aarch64-macos*)
+    LIBSRTP_TARGET="arm64-apple-darwin"
+    ;;            
+  aarch64-android)
+    source ./zig-build/build_android_libsrtp.sh --target=$TARGET
+    exit 1  
+    LIBSRTP_TARGET="aarch64-unknown-linux-android"
+    ;;
+  x86_64-android)
+    source ./zig-build/build_android_libsrtp.sh --target=$TARGET
+    exit 1  
+    LIBSRTP_TARGET="x86_64-unknown-linux-android"
+    ;;
+  arm-android)
+    source ./zig-build/build_android_libsrtp.sh --target=$TARGET
+    exit 1  
+    LIBSRTP_TARGET="arm-unknown-linux-androideabi"
+    ;;
+  *)
+    echo "警告: 未知目标架构 $TARGET，尝试使用通用配置"
+    LIBSRTP_TARGET="linux-generic64"
+    ;;
+esac
 
 # 设置Zig CC环境变量
 export CC="zig cc -target $TARGET"
@@ -89,7 +136,7 @@ fi
 # 配置libsrtp，启用OpenSSL
 echo "配置libsrtp..."
 ./configure \
-  --prefix="$INSTALL_DIR" \
+  --prefix="$INSTALL_DIR" --host=${LIBSRTP_TARGET} \
   --enable-openssl \
   --with-openssl-dir="$OPENSSL_DIR"
 
@@ -132,3 +179,4 @@ echo "=== libsrtp v2.4.2 编译完成 ==="
 echo "安装目录: $INSTALL_DIR"
 echo "库文件位置: $INSTALL_DIR/lib"
 echo "头文件位置: $INSTALL_DIR/include" 
+make clean

@@ -49,3 +49,12 @@
 /ios/
 /cmake-build-*
 /3rdpart/ZLToolKit/cmake-build-mq/
+
+# zig-build
+/zig-build/zig-toolchain-*
+/zig-build/openssl-*
+/zig-build/librtsp-*
+/zig-build/build
+/zig-build/install
+# 排除以 .sh 结尾的文件
+/zig-build/!*.sh

@@ -1,22 +1,23 @@
 #!/bin/bash
 # OpenSSL 3.4.1 使用Zig CC交叉编译脚本
 
+
 # 出错时退出
 set -e
 
 # 默认目标架构
 TARGET="x86_64-linux-gnu"
-OPENSSL_DIR="$(pwd)/../3rdpart/openssl"
-BUILD_DIR="$(pwd)/openssl-build-${TARGET}"
-INSTALL_DIR="$(pwd)/openssl-install-${TARGET}"
+OPENSSL_DIR="$(pwd)/3rdpart/openssl"
+# BUILD_DIR="$(pwd)/zig-build/build/openssl/${TARGET}"
+INSTALL_DIR="$(pwd)/zig-build/install/openssl/${TARGET}"
 
 # 解析命令行参数
 for arg in "$@"; do
   case $arg in
     --target=*)
       TARGET="${arg#*=}"
-      BUILD_DIR="$(pwd)/openssl-build-${TARGET}"
-      INSTALL_DIR="$(pwd)/openssl-install-${TARGET}"
+      # BUILD_DIR="$(pwd)/zig-build/build/openssl/${TARGET}"
+      INSTALL_DIR="$(pwd)/zig-build/install/openssl/${TARGET}"
       shift
       ;;
     --help)
@@ -27,14 +28,13 @@ for arg in "$@"; do
       echo ""
       echo "支持的目标架构示例:"
       echo "  x86_64-linux-gnu      - x86_64 Linux (GNU libc)"
-      echo "  x86_64-linux-musl     - x86_64 Linux (musl libc)"
       echo "  aarch64-linux-gnu     - ARM64 Linux (GNU libc)"
-      echo "  aarch64-linux-musl    - ARM64 Linux (musl libc)"
-      echo "  riscv64-linux-gnu     - RISC-V 64-bit Linux (GNU libc)"
-      echo "  riscv64-linux-musl    - RISC-V 64-bit Linux (musl libc)"
-      echo "  aarch64-android       - ARM64 Android"
-      echo "  x86_64-android        - x86_64 Android"
-      echo "  arm-android           - ARM 32-bit Android"
+      echo "  aarch64-linux-android     - ARM64 Android"
+      echo "  arm-linux-android         - ARM 32-bit Android"     
+      echo "  riscv64-linux-gnu     - RISC-V 64-bit Linux (GNU libc)"   
+      echo "  x86_64-windows-gnu    - x86_64 Windows (MinGW)" # sudo apt install mingw-w64
+      echo "  x86_64-macos          - x86_64 macOS"
+      echo "  aarch64-macos         - ARM64 macOS"
       exit 0
       ;;
   esac
@@ -53,7 +53,7 @@ if [ ! -d "$OPENSSL_DIR" ]; then
 fi
 
 # 创建构建和安装目录
-mkdir -p "$BUILD_DIR"
+# mkdir -p "$BUILD_DIR"
 mkdir -p "$INSTALL_DIR"
 
 # 设置Zig CC环境变量
@@ -77,14 +77,20 @@ case $TARGET in
   arm-linux-*)
     OPENSSL_TARGET="linux-armv4"
     ;;
+  x86_64-windows-gnu*)
+    OPENSSL_TARGET="mingw64"
+    ;;    
   aarch64-android)
     OPENSSL_TARGET="android-arm64"
+    source ./zig-build/build_android_env.sh
     ;;
   x86_64-android)
     OPENSSL_TARGET="android-x86_64"
+    source ./zig-build/build_android_env.sh
     ;;
   arm-android)
     OPENSSL_TARGET="android-arm"
+    source ./zig-build/build_android_env.sh
     ;;
   *)
     echo "警告: 未知目标架构 $TARGET，尝试使用通用配置"
@@ -94,7 +100,7 @@ esac
 
 echo "=== 开始为 $TARGET 构建 OpenSSL 3.4.1 ==="
 echo "源码目录: $OPENSSL_DIR"
-echo "构建目录: $BUILD_DIR"
+# echo "构建目录: $BUILD_DIR"
 echo "安装目录: $INSTALL_DIR"
 echo "OpenSSL目标: $OPENSSL_TARGET"
 
@@ -112,7 +118,6 @@ echo "配置OpenSSL..."
   --libdir=lib \
   no-shared \
   no-tests \
-  no-apps \
   "$OPENSSL_TARGET"
 
 # 编译OpenSSL
@@ -127,3 +132,4 @@ echo "=== OpenSSL 3.4.1 构建完成 ==="
 echo "安装目录: $INSTALL_DIR"
 echo "库文件位置: $INSTALL_DIR/lib"
 echo "头文件位置: $INSTALL_DIR/include" 
+make clean
