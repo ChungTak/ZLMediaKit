@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export ANDROID_NDK_ROOT=/dataset/datavol/sdk/android_ndk/android-ndk-r21e
+export ANDROID_NDK_ROOT=/home/runner/work/ZLMediaKit/ZLMediaKit/android-ndk
 
 HOST_TAG=linux-x86_64
 

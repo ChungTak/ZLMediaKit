@@ -1,9 +1,12 @@
 name: Release Build
 
+# on:
+#   push:
+#     branches:
+#       - master
+
 on:
-  push:
-    branches:
-      - master
+  workflow_dispatch:
 
 jobs:
   build:
@@ -60,7 +63,15 @@ jobs:
       - name: Setup Zig
         uses: korandoru/setup-zig@v1
         with:
-          version: 0.14.0
+          zig-version: 0.14.0
+
+      # 获取最后一次提交的日期并格式化为 YYYY_MM_DD
+      - name: Set Last Commit Date
+        id: last-commit-date
+        run: |
+          LAST_COMMIT_DATE=$(git log -1 --format=%cd --date=short)
+          FORMATTED_DATE=$(date -d "$LAST_COMMIT_DATE" +%Y_%m_%d)
+          echo "LAST_COMMIT_DATE=$FORMATTED_DATE" >> $GITHUB_ENV
 
       # 构建和打包步骤（按矩阵目标执行）
       - name: Build for ${{ matrix.target }}
@@ -83,7 +94,7 @@ jobs:
 
           # 处理输出目录
           if [ -d "$OUTPUT_DIR" ]; then
-            RELEASE_NAME="ZLMediaKit_${{ matrix.target }}_${{ env.BUILD_DATE }}"
+            RELEASE_NAME="ZLMediaKit_${{ matrix.target }}_${{ env.LAST_COMMIT_DATE }}"
             mkdir -p release/artifacts
             mv "$OUTPUT_DIR" "release/artifacts/$RELEASE_NAME"
             tar -czvf "release/artifacts/$RELEASE_NAME.tar.gz" -C "release/artifacts" "$RELEASE_NAME"
