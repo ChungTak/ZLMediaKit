@@ -15,7 +15,11 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: master
-
+          
+      # 初始化 git 子模块
+      - name: Initialize Submodules
+        run: git submodule update --init
+        
       # 安装 Android NDK 21 (以 r21e 为例)
       - name: Install Android NDK 21
         run: |
@@ -51,8 +55,8 @@ jobs:
       - name: Build and Package Targets
         run: |
           # 定义交叉编译 target 列表
-          chmod +x ./zig-build/*.sh
           targets=("x86_64-linux-gnu" "aarch64-linux-gnu" "aarch64-linux-android" "riscv64-linux-gnu")
+          chmod +x ./zig-build/*.sh
           for target in "${targets[@]}"; do
             echo "==============================="
             echo "Start building for target: $target"
