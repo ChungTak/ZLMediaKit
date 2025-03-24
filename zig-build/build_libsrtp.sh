@@ -78,6 +78,7 @@ case $TARGET in
     LIBSRTP_TARGET="arm-unknown-linux-gnueabihf"
     ;;
   x86_64-windows-gnu*)
+    export RC=/usr/bin/x86_64-w64-mingw32-windres
     LIBSRTP_TARGET="x86_64-w64-mingw32"
     ;;
   x86_64-macos*)

@@ -78,6 +78,7 @@ case $TARGET in
     OPENSSL_TARGET="linux-armv4"
     ;;
   x86_64-windows-gnu)
+    export RC=/usr/bin/x86_64-w64-mingw32-windres
     OPENSSL_TARGET="mingw64"
     ;;    
   aarch64-linux-android)
