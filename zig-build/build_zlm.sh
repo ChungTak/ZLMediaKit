@@ -310,7 +310,7 @@ if [ "$ENABLE_WEBRTC" = true ]; then
     echo "启用WebRTC支持..."
     CMAKE_ARGS+=(
         -DENABLE_WEBRTC=ON
-        -DENABLE_SCTP=ON
+        -DSRTP_PREFIX="$SCRIPT_DIR/install/libsrtp/${TARGET}/"
         -DSRTP_INCLUDE_DIRS="$SCRIPT_DIR/install/libsrtp/${TARGET}/include/"
         -DSRTP_LIBRARIES="$SCRIPT_DIR/install/libsrtp/${TARGET}/lib/libsrtp2.a"
     )
@@ -318,7 +318,6 @@ else
     echo "禁用WebRTC支持..."
     CMAKE_ARGS+=(
         -DENABLE_WEBRTC=OFF
-        -DENABLE_SCTP=OFF
     )
 fi
 
