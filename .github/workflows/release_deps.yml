@@ -1,4 +1,4 @@
-name: Release Build
+name: Release DEPENDENCIES for ZLMediaKit
 
 on:
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
       - name: Setup Zig
         uses: korandoru/setup-zig@v1
         with:
-          version: 0.14.0
+          zig-version: 0.14.0
 
       # 构建和打包所有目标
       - name: Build and Package All Targets
