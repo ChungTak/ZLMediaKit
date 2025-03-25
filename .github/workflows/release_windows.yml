@@ -22,17 +22,19 @@ jobs:
     - name: Install CMake
       run: choco install cmake -y
 
+
     - name: Install OpenSSL
       run: |
-        choco install openssl --version=3.0.16 -y --params="/InstallDir:C:\OpenSSL-Win64 /ADD_TO_PATH"
-        echo "OPENSSL_ROOT_DIR=C:\OpenSSL-Win64" >> $env:GITHUB_ENV
-        echo "OPENSSL_INCLUDE_DIR=C:\OpenSSL-Win64\include" >> $env:GITHUB_ENV
-        echo "OPENSSL_LIBRARIES=C:\OpenSSL-Win64\lib" >> $env:GITHUB_ENV
-        echo "OPENSSL_CRYPTO_LIBRARY=C:\OpenSSL-Win64\lib\VC\x64\MT\libcrypto.lib" >> $env:GITHUB_ENV
-        echo "OPENSSL_SSL_LIBRARY=C:\OpenSSL-Win64\lib\VC\x64\MT\libssl.lib" >> $env:GITHUB_ENV
-
+        $url = "https://slproweb.com/download/Win64OpenSSL-3_0_16.exe"
+        $output = "$env:RUNNER_TEMP\OpenSSL.exe"
+        Invoke-WebRequest -Uri $url -OutFile $output
+        Start-Process -FilePath $output -ArgumentList '/silent', '/sp-', '/suppressmsgboxes', '/norestart', '/DIR="C:\OpenSSL-Win64\"' -Wait
+        Add-Content $env:GITHUB_ENV "OPENSSL_ROOT_DIR=C:\OpenSSL-Win64\"
+        Add-Content $env:GITHUB_ENV "OPENSSL_INCLUDE_DIR=C:\OpenSSL-Win64\include"
+        Add-Content $env:GITHUB_ENV "OPENSSL_LIBRARIES=C:\OpenSSL-Win64\lib"
+        Add-Content $env:GITHUB_ENV "OPENSSL_CRYPTO_LIBRARY=C:\OpenSSL-Win64\lib\VC\x64\MT\libcrypto.lib"
+        Add-Content $env:GITHUB_ENV "OPENSSL_SSL_LIBRARY=C:\OpenSSL-Win64\lib\VC\x64\MT\libssl.lib"
  
-
 
     - name: Install libsrtp
       run: |
