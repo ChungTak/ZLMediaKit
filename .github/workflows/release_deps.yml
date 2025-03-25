@@ -31,6 +31,17 @@ jobs:
             gcc-riscv64-linux-gnu \
             libc6-dev-riscv64-cross
 
+
+      - name: Setup Android NDK
+        uses: actions/checkout@v3
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r21e
+          local-cache: true
+          add-to-path: true
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       # 安装 Zig
       - name: Setup Zig
         uses: korandoru/setup-zig@v1
