@@ -60,8 +60,7 @@ jobs:
       - name: Build for ${{ matrix.target }}
         run: |
           export OUTPUT_DIR="release/$(
-            if [[ "${{ matrix.target }}" == *"android"* ]] || 
-               [[ "${{ matrix.target }}" == "riscv64-linux-gnu" ]]; then
+            if [[ "${{ matrix.target }}" == *"android"* ]]; then
               echo "android"
             else
               echo "linux"
