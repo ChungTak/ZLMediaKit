@@ -1,0 +1,145 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      # 检出代码
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          submodules: recursive
+
+      # 获取最后一次提交日期
+      - name: Set Last Commit Date
+        run: |
+          LAST_COMMIT_DATE=$(git log -1 --format=%cd --date=short)
+          echo "LAST_COMMIT_DATE=$(date -d "$LAST_COMMIT_DATE" +%Y_%m_%d)" >> $GITHUB_ENV
+
+      # 安装构建工具链
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            cmake \
+            make \
+            gcc-riscv64-linux-gnu \
+            libc6-dev-riscv64-cross
+
+      # 安装 Zig
+      - name: Setup Zig
+        uses: korandoru/setup-zig@v1
+        with:
+          version: 0.14.0
+
+      # 构建和打包所有目标
+      - name: Build and Package All Targets
+        run: |
+          # 定义目标列表
+          targets=("x86_64-linux-gnu" "aarch64-linux-gnu" "aarch64-linux-android" "arm-linux-android" "riscv64-linux-gnu" "x86_64-windows-gnu")
+          chmod +x ./zig-build/*.sh
+
+          # 循环处理每个目标
+          for target in "${targets[@]}"; do
+            echo "==============================="
+            echo "Building target: $target"
+            echo "==============================="
+
+            # 执行编译步骤
+            ./zig-build/build_libsrtp.sh --target=$target
+
+            # 确定输出目录
+            openssl_output_dir="zig-build/install/openssl/${target}"
+            libsrtp_output_dir="zig-build/install/libsrtp/${target}"
+
+            # 处理产物
+            if [ -d "$openssl_output_dir" ]; then
+              artifact_name="openssl-3.0.16-${target}"
+              mkdir -p release/artifacts
+              mv "$openssl_output_dir" "release/artifacts/$artifact_name"
+              tar -czvf "release/artifacts/${artifact_name}.tar.gz" -C "release/artifacts" "$artifact_name"
+            else
+              echo "::error::Output directory $openssl_output_dir not found for $target!"
+              exit 1
+            fi
+
+            if [ -d "$libsrtp_output_dir" ]; then
+              artifact_name="libsrtp-2.4.2-${target}"
+              mkdir -p release/artifacts
+              mv "$libsrtp_output_dir" "release/artifacts/$artifact_name"
+              tar -czvf "release/artifacts/${artifact_name}.tar.gz" -C "release/artifacts" "$artifact_name"
+            else
+              echo "::error::Output directory $libsrtp_output_dir not found for $target!"
+              exit 1
+            fi
+          done
+
+      # 上传产物
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: release/artifacts/*.tar.gz
+          retention-days: 7
+
+
+      # 创建 GitHub Release
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: openssl-libsrtp-release
+          release_name: openssl-3.0.16-libsrtp-2.4.2-Release
+          body: |
+            Automatic build for commit ${{ github.sha }}
+            Built on: ${{ env.LAST_COMMIT_DATE }}
+          draft: false
+          prerelease: false
+          overwrite: true  # 允许覆盖同日期 Release
+
+      # 批量上传资产
+      - name: Upload Release Assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          upload_url="${{ steps.create_release.outputs.upload_url }}"
+          
+          # 创建计数器
+          count=0
+          total=$(ls release/artifacts/*.tar.gz | wc -l)
+
+          for asset in release/artifacts/*.tar.gz; do
+            ((count++))
+            filename=$(basename "$asset")
+            echo "[$count/$total] Uploading $filename"
+
+            # 使用 GitHub API 直接上传
+            response=$(curl -sS \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/gzip" \
+              --data-binary @"$asset" \
+              -w "%{http_code}" \
+              "$upload_url?name=$filename")
+
+            # 解析响应状态码
+            http_status=${response: -3}
+            if [ "$http_status" -eq 201 ]; then
+              echo "✅ Upload success"
+            else
+              echo "❌ Upload failed (HTTP $http_status)"
+              echo "Response body: ${response%???}"
+              exit 1
+            fi
+          done
+
+      # 清理工作空间
+      - name: Cleanup
+        if: always()
+        run: rm -rf android-ndk* zig-linux-*

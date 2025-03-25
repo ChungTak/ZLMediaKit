@@ -54,8 +54,20 @@ fi
 OPENSSL_DIR="$(pwd)/zig-build/install/openssl/${TARGET}"
 if [ ! -d "$OPENSSL_DIR" ]; then
     echo "错误: 未找到OpenSSL目录: $OPENSSL_DIR"
-    echo "请先运行 build-openssl.sh --target=${TARGET} 编译OpenSSL"
-    exit 1
+    # 保存当前目录
+    CURRENT_DIR=$(pwd)    
+    bash "$(pwd)/zig-build/build_openssl.sh" "--target=$TARGET"
+    # 检查构建结果
+    if [ ! -d "$OPENSSL_DIR" ]; then
+        echo "错误: OpenSSL构建失败，目录仍不存在: $OPENSSL_DIR"
+        exit 1
+    fi    
+    # echo "请先运行 build-openssl.sh --target=${TARGET} 编译OpenSSL"
+    # exit 1
+    # 返回原目录
+    cd "$CURRENT_DIR"
+    
+    echo "OpenSSL构建成功!"    
 fi
 
 # 创建安装目录
