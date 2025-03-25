@@ -46,12 +46,17 @@ jobs:
       env:
         PATH: ${{ env.PATH }};C:\Program Files\OpenSSL-Win64\bin;C:\Program Files\OpenSSL-Win64\lib;C:\Program Files\OpenSSL-Win64\include
         OPENSSL_ROOT_DIR: C:\Program Files\OpenSSL-Win64        
+        OPENSSL_INCLUDE_DIR: C:\Program Files\OpenSSL-Win64\include        
+        OPENSSL_LIBRARIES: C:\Program Files\OpenSSL-Win64\lib
+
 
     - name: Build ZLMediaKit
       run: .\zig-build\build_zlm_windows.bat
       env:
         PATH: ${{ env.PATH }};C:\Program Files\OpenSSL-Win64\bin;C:\Program Files\OpenSSL-Win64\lib;C:\Program Files\OpenSSL-Win64\include
         OPENSSL_ROOT_DIR: C:\Program Files\OpenSSL-Win64
+        OPENSSL_INCLUDE_DIR: C:\Program Files\OpenSSL-Win64\include        
+        OPENSSL_LIBRARIES: C:\Program Files\OpenSSL-Win64\lib
 
     - name: Get commit date
       id: get_date
