@@ -33,7 +33,6 @@ jobs:
 
 
       - name: Setup Android NDK
-        uses: actions/checkout@v3
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
