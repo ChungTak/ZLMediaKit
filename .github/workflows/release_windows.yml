@@ -2,6 +2,7 @@ name: Build ZLMediaKit Windows
 
 on:
   workflow_dispatch:
+  
 jobs:
   build:
     name: Build on Windows
@@ -32,8 +33,8 @@ jobs:
         Add-Content $env:GITHUB_ENV "OPENSSL_ROOT_DIR=C:\OpenSSL-Win64\"
         Add-Content $env:GITHUB_ENV "OPENSSL_INCLUDE_DIR=C:\OpenSSL-Win64\include"
         Add-Content $env:GITHUB_ENV "OPENSSL_LIBRARIES=C:\OpenSSL-Win64\lib"
-        Add-Content $env:GITHUB_ENV "OPENSSL_CRYPTO_LIBRARY=C:\OpenSSL-Win64\lib\VC\x64\MT\libcrypto.lib"
-        Add-Content $env:GITHUB_ENV "OPENSSL_SSL_LIBRARY=C:\OpenSSL-Win64\lib\VC\x64\MT\libssl.lib"
+        Add-Content $env:GITHUB_ENV "OPENSSL_CRYPTO_LIBRARY=C:\OpenSSL-Win64\lib\VC\x64\MD\libcrypto.lib"
+        Add-Content $env:GITHUB_ENV "OPENSSL_SSL_LIBRARY=C:\OpenSSL-Win64\lib\VC\x64\MD\libssl.lib"
  
 
     - name: Install libsrtp
