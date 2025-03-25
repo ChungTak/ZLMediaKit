@@ -74,11 +74,18 @@ jobs:
         Copy-Item -Path release\windows\Release\* -Destination release_package -Recurse
         Compress-Archive -Path release_package -DestinationPath ZLMediaKit_webrtc_Win64_$env:DATE.zip
 
+
+
     - name: Upload release
       uses: softprops/action-gh-release@v1
       if: success()
       with:
+        tag_name: release-windows-${{ env.DATE }}
+        name: Release Windows ${{ env.DATE }}      
         files: ZLMediaKit_webrtc_Win64_${{ env.DATE }}.zip
         body: "Windows build for commit ${{ github.sha }}"
+        draft: false
+        prerelease: false
+        overwrite: true  # 覆盖现有Release和Tag        
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
