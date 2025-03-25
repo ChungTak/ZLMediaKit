@@ -43,11 +43,14 @@ jobs:
         cmake -DCMAKE_INSTALL_PREFIX=C:\libsrtp -G "Visual Studio 17 2022" -DBUILD_SHARED_LIBS=on -DENABLE_OPENSSL=on ..
         cmake --build . --config Release
         cmake --install . --prefix "C:\libsrtp"
+      env:
+        PATH: ${{ env.PATH }};C:\Program Files\OpenSSL-Win64\bin;C:\Program Files\OpenSSL-Win64\lib;C:\Program Files\OpenSSL-Win64\include
+        OPENSSL_ROOT_DIR: C:\Program Files\OpenSSL-Win64        
 
     - name: Build ZLMediaKit
       run: .\zig-build\build_zlm_windows.bat
       env:
-        PATH: ${{ env.PATH }};C:\Program Files\OpenSSL-Win64\bin
+        PATH: ${{ env.PATH }};C:\Program Files\OpenSSL-Win64\bin;C:\Program Files\OpenSSL-Win64\lib;C:\Program Files\OpenSSL-Win64\include
         OPENSSL_ROOT_DIR: C:\Program Files\OpenSSL-Win64
 
     - name: Get commit date
