@@ -61,3 +61,5 @@
 
 # 排除以 .sh 结尾的文件
 /zig-build/!*.sh
+
+/3rdpart/libsrtp/*.pdb

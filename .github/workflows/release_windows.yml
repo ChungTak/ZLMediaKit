@@ -24,11 +24,15 @@ jobs:
 
     - name: Install OpenSSL
       run: |
-        $url = "https://slproweb.com/download/Win64OpenSSL-3_0_16.exe"
-        $output = "$env:RUNNER_TEMP\OpenSSL.exe"
-        Invoke-WebRequest -Uri $url -OutFile $output
-        Start-Process -FilePath $output -ArgumentList '/silent', '/sp-', '/suppressmsgboxes', '/norestart' -Wait
-        Add-Content $env:GITHUB_ENV "OPENSSL_ROOT_DIR=C:\Program Files\OpenSSL-Win64\"
+        choco install openssl --version=3.0.16 -y --params="/InstallDir:C:\OpenSSL-Win64 /ADD_TO_PATH"
+        echo "OPENSSL_ROOT_DIR=C:\OpenSSL-Win64" >> $env:GITHUB_ENV
+        echo "OPENSSL_INCLUDE_DIR=C:\OpenSSL-Win64\include" >> $env:GITHUB_ENV
+        echo "OPENSSL_LIBRARIES=C:\OpenSSL-Win64\lib" >> $env:GITHUB_ENV
+        echo "OPENSSL_CRYPTO_LIBRARY=C:\OpenSSL-Win64\lib\VC\x64\MT\libcrypto.lib" >> $env:GITHUB_ENV
+        echo "OPENSSL_SSL_LIBRARY=C:\OpenSSL-Win64\lib\VC\x64\MT\libssl.lib" >> $env:GITHUB_ENV
+
+ 
+
 
     - name: Install libsrtp
       run: |
@@ -44,19 +48,15 @@ jobs:
         cmake --build . --config Release
         cmake --install . --prefix "C:\libsrtp"
       env:
-        PATH: ${{ env.PATH }};C:\Program Files\OpenSSL-Win64\bin;C:\Program Files\OpenSSL-Win64\lib;C:\Program Files\OpenSSL-Win64\include
-        OPENSSL_ROOT_DIR: C:\Program Files\OpenSSL-Win64        
-        OPENSSL_INCLUDE_DIR: C:\Program Files\OpenSSL-Win64\include        
-        OPENSSL_LIBRARIES: C:\Program Files\OpenSSL-Win64\lib
+        PATH: ${{ env.PATH }};C:\OpenSSL-Win64\bin;C:\OpenSSL-Win64\lib;C:\OpenSSL-Win64\include
+        OPENSSL_ROOT_DIR: C:\OpenSSL-Win64        
 
 
     - name: Build ZLMediaKit
       run: .\zig-build\build_zlm_windows.bat
       env:
-        PATH: ${{ env.PATH }};C:\Program Files\OpenSSL-Win64\bin;C:\Program Files\OpenSSL-Win64\lib;C:\Program Files\OpenSSL-Win64\include
-        OPENSSL_ROOT_DIR: C:\Program Files\OpenSSL-Win64
-        OPENSSL_INCLUDE_DIR: C:\Program Files\OpenSSL-Win64\include        
-        OPENSSL_LIBRARIES: C:\Program Files\OpenSSL-Win64\lib
+        PATH: ${{ env.PATH }};C:\OpenSSL-Win64\bin;C:\OpenSSL-Win64\lib;C:\OpenSSL-Win64\include
+        OPENSSL_ROOT_DIR: C:\OpenSSL-Win64
 
     - name: Get commit date
       id: get_date
