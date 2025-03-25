@@ -1,13 +1,7 @@
 name: Release Build ALL Linux
 
-# on:
-#   push:
-#     branches:
-#       - master
-
 on:
   workflow_dispatch:
-
 
 jobs:
   build:
@@ -25,12 +19,12 @@ jobs:
       BUILD_DATE: ${{ github.workflow }}-${{ github.run_id }}-$(date -u +'%Y_%m_%d')
 
     steps:
-      # 检出代码（升级到 v4）
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           ref: master
-          submodules: recursive  # 替代单独的子模块初始化步骤
+          submodules: recursive
+          fetch-depth: 0  # 获取所有提交和Tag
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
@@ -42,7 +36,6 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
-      # 安装构建工具链（合并步骤）
       - name: Install Dependencies
         run: |
           sudo apt-get update -qq
@@ -52,13 +45,11 @@ jobs:
             gcc-riscv64-linux-gnu \
             libc6-dev-riscv64-cross
 
-      # 使用官方 Zig 安装（替代手动安装）
       - name: Setup Zig
         uses: korandoru/setup-zig@v1
         with:
           zig-version: 0.14.0
 
-      # 获取最后一次提交的日期并格式化为 YYYY_MM_DD
       - name: Set Last Commit Date
         id: last-commit-date
         run: |
@@ -66,10 +57,8 @@ jobs:
           FORMATTED_DATE=$(date -d "$LAST_COMMIT_DATE" +%Y_%m_%d)
           echo "LAST_COMMIT_DATE=$FORMATTED_DATE" >> $GITHUB_ENV
 
-      # 构建和打包步骤（按矩阵目标执行）
       - name: Build for ${{ matrix.target }}
         run: |
-          # 设置环境变量
           export OUTPUT_DIR="release/$(
             if [[ "${{ matrix.target }}" == *"android"* ]] || 
                [[ "${{ matrix.target }}" == "riscv64-linux-gnu" ]]; then
@@ -79,11 +68,9 @@ jobs:
             fi
           )/ReleaseSmall"
 
-          # 执行编译脚本
           chmod +x ./zig-build/*.sh
           ./zig-build/build_zlm.sh --target=${{ matrix.target }}
 
-          # 处理输出目录
           if [ -d "$OUTPUT_DIR" ]; then
             RELEASE_NAME="ZLMediaKit_${{ matrix.target }}_${{ env.LAST_COMMIT_DATE }}"
             mkdir -p release/artifacts
@@ -94,24 +81,47 @@ jobs:
             exit 1
           fi
 
-      # 上传产物（升级到 v4）
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-artifacts
-          path: |
-            release/artifacts/*.tar.gz
+          name: release-artifacts-${{ matrix.target }}
+          path: release/artifacts/ZLMediaKit_${{ matrix.target }}_${{ env.LAST_COMMIT_DATE }}.tar.gz
           retention-days: 7
 
-      # 创建 GitHub Release
+  release:
+    runs-on: ubuntu-22.04
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set Last Commit Date
+        id: last-commit-date
+        run: |
+          LAST_COMMIT_DATE=$(git log -1 --format=%cd --date=short)
+          FORMATTED_DATE=$(date -d "$LAST_COMMIT_DATE" +%Y_%m_%d)
+          echo "LAST_COMMIT_DATE=$FORMATTED_DATE" >> $GITHUB_ENV
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          pattern: release-artifacts-*
+          merge-multiple: true
+
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: release-${{ env.LAST_COMMIT_DATE }}
-          release_name: Release ${{ env.LAST_COMMIT_DATE }}
+          name: Release ${{ env.LAST_COMMIT_DATE }}
           body: |
             Automatic build for commit ${{ github.sha }}
             Built on: ${{ env.LAST_COMMIT_DATE }}
@@ -119,20 +129,6 @@ jobs:
             ${{ github.event.head_commit.message }}
           draft: false
           prerelease: false
-          overwrite: true  # 允许覆盖同日期 Release
-
-      # 上传 Release 资产
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release/artifacts/ZLMediaKit_${{ matrix.target }}_${{ env.LAST_COMMIT_DATE }}.tar.gz
-          asset_name: ZLMediaKit_${{ matrix.target }}_${{ env.LAST_COMMIT_DATE }}.tar.gz
-          asset_content_type: application/gzip          
-
-      # 清理工作空间（可选）
-      - name: Cleanup
-        if: always()
-        run: rm -rf android-ndk* zig-linux-*
+          overwrite: true  # 覆盖现有Release和Tag
+          files: |
+            release-artifacts/*.tar.gz
