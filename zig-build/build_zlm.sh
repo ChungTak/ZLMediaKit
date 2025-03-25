@@ -29,11 +29,16 @@ for arg in "$@"; do
       ENABLE_WEBRTC=true
       shift
       ;;
+    --compile-deps)
+      COMPILE_DEPS=true
+      shift      
+      ;;
     --help)
       echo "用法: $0 [选项]"
       echo "选项:"
       echo "  --target=<目标>    指定目标架构 (默认: x86_64-linux-gnu)"
       echo "  --enable-webrtc    启用WebRTC支持 (默认: 禁用)"
+      echo "  --compile-deps     编译依赖库源代码 (默认: 不编译)"
       echo "  --help             显示此帮助信息"
       echo ""
       echo "支持的目标架构示例:"
@@ -64,16 +69,30 @@ fi
 # 检查OpenSSL依赖，如果不存在则自动构建
 OPENSSL_INSTALL_DIR="$SCRIPT_DIR/install/openssl/${TARGET}"
 if [[ ! -d "$OPENSSL_INSTALL_DIR" || -z "$(ls -A $OPENSSL_INSTALL_DIR)"  ]]; then
-    echo "警告: 未找到OpenSSL安装目录: $OPENSSL_INSTALL_DIR"
-    echo "自动执行构建OpenSSL脚本..."
-    
     # 保存当前目录
     CURRENT_DIR=$(pwd)
-    
-    # 执行构建OpenSSL脚本
-    # cd "$SCRIPT_DIR"
-    bash "$SCRIPT_DIR/build_openssl.sh" "--target=$TARGET"
-    
+    if [ "$COMPILE_DEPS" = true ]; then
+        echo "警告: 未找到OpenSSL安装目录: $OPENSSL_INSTALL_DIR"
+        echo "自动执行构建OpenSSL脚本..."    
+        # 执行构建OpenSSL脚本
+        bash "$SCRIPT_DIR/build_openssl.sh" "--target=$TARGET"
+    else
+        # 下载openssl tar依赖
+        openssl_version="3.0.16"
+        file_name="openssl-$openssl_version-$TARGET.tar.gz"
+        wget -P "$SCRIPT_DIR/install/openssl" https://github.com/ChungTak/ZLMediaKit/releases/download/openssl-3.0.16-libsrtp-2.4.2-Release/$file_name
+        tar -xzf "$SCRIPT_DIR/install/openssl/$file_name" -C "$SCRIPT_DIR/install/openssl"
+        # 检查解压和重命名是否成功
+        if [ $? -eq 0 ]; then
+            echo "解压和重命名成功！"
+        else
+            echo "解压或重命名失败，请检查文件是否存在。$SCRIPT_DIR/install/openssl/$file_name"
+            exit 1
+        fi
+        # 删除压缩文件
+        rm $SCRIPT_DIR/install/openssl/$file_name
+
+    fi
     # 检查构建结果
     if [ ! -d "$OPENSSL_INSTALL_DIR" ]; then
         echo "错误: OpenSSL构建失败，目录仍不存在: $OPENSSL_INSTALL_DIR"
@@ -95,11 +114,26 @@ if [ "$ENABLE_WEBRTC" = true ]; then
         
         # 保存当前目录
         CURRENT_DIR=$(pwd)
-        
+        if [ "$COMPILE_DEPS" = true ]; then
         # 执行构建libsrtp脚本
         # cd "$SCRIPT_DIR"
         bash "$SCRIPT_DIR/build_libsrtp.sh" "--target=$TARGET"
-        
+        else
+            # 下载libsrtp tar依赖
+            srtp_version="2.4.2"
+            file_name="libsrtp-$srtp_version-$TARGET.tar.gz"
+            wget -P "$SCRIPT_DIR/install/libsrtp" https://github.com/ChungTak/ZLMediaKit/releases/download/openssl-3.0.16-libsrtp-2.4.2-Release/$file_name
+            tar -xzf "$SCRIPT_DIR/install/libsrtp/$file_name" -C "$SCRIPT_DIR/install/libsrtp"
+            # 检查解压和重命名是否成功
+            if [ $? -eq 0 ]; then
+                echo "解压和重命名成功！"
+            else
+                echo "解压或重命名失败，请检查文件是否存在。$SCRIPT_DIR/install/libsrtp/$file_name"
+                exit 1
+            fi  
+            # 删除压缩文件
+            rm $SCRIPT_DIR/install/libsrtp/$file_name
+        fi  
         # 检查构建结果
         if [ ! -d "$LIBSRTP_INSTALL_DIR" ]; then
             echo "错误: libsrtp构建失败，目录仍不存在: $LIBSRTP_INSTALL_DIR"

@@ -32,25 +32,15 @@ jobs:
             libc6-dev-riscv64-cross
 
 
-      # NDK 缓存（优化下载速度）
-      - name: Cache NDK
-        uses: actions/cache@v3
-        id: ndk-cache
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
         with:
-          path: |
-            android-ndk
-            android-ndk-r21e-linux-x86_64.zip
-          key: ${{ runner.os }}-ndk-r21e
-
-      # 安装 Android NDK（仅在缓存未命中时执行）
-      - name: Install Android NDK 21
-        if: steps.ndk-cache.outputs.cache-hit != 'true'
-        run: |
-          wget -q https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip
-          unzip -q android-ndk-r21e-linux-x86_64.zip
-          mv android-ndk-r21e android-ndk
+          ndk-version: r21e
+          local-cache: true
+          add-to-path: true
         env:
-          ANDROID_NDK_HOME: ${{ github.workspace }}/android-ndk
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       # 安装 Zig
       - name: Setup Zig
         uses: korandoru/setup-zig@v1
