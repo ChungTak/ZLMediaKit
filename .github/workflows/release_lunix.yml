@@ -1,27 +1,36 @@
-name: Release Build
+name: Release Build ALL Linux
+
+# on:
+#   push:
+#     branches:
+#       - master
 
 on:
   workflow_dispatch:
+
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     permissions:
-      contents: write  # 必须添加此权限才能创建 Release
+      contents: write    
+    strategy:
+      matrix:
+        target: 
+          - x86_64-linux-gnu
+          - aarch64-linux-gnu
+          - aarch64-linux-android
+          - riscv64-linux-gnu
+    env:
+      BUILD_DATE: ${{ github.workflow }}-${{ github.run_id }}-$(date -u +'%Y_%m_%d')
 
     steps:
-      # 检出代码
+      # 检出代码（升级到 v4）
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           ref: master
-          submodules: recursive
-
-      # 获取最后一次提交日期
-      - name: Set Last Commit Date
-        run: |
-          LAST_COMMIT_DATE=$(git log -1 --format=%cd --date=short)
-          echo "LAST_COMMIT_DATE=$(date -d "$LAST_COMMIT_DATE" +%Y_%m_%d)" >> $GITHUB_ENV
+          submodules: recursive  # 替代单独的子模块初始化步骤
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
@@ -33,7 +42,7 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
-      # 安装构建工具链
+      # 安装构建工具链（合并步骤）
       - name: Install Dependencies
         run: |
           sudo apt-get update -qq
@@ -43,50 +52,58 @@ jobs:
             gcc-riscv64-linux-gnu \
             libc6-dev-riscv64-cross
 
-      # 安装 Zig
+      # 使用官方 Zig 安装（替代手动安装）
       - name: Setup Zig
         uses: korandoru/setup-zig@v1
         with:
           zig-version: 0.14.0
 
-      # 构建和打包所有目标
-      - name: Build and Package All Targets
+      # 获取最后一次提交的日期并格式化为 YYYY_MM_DD
+      - name: Set Last Commit Date
+        id: last-commit-date
         run: |
-          targets=("aarch64-linux-android")
+          LAST_COMMIT_DATE=$(git log -1 --format=%cd --date=short)
+          FORMATTED_DATE=$(date -d "$LAST_COMMIT_DATE" +%Y_%m_%d)
+          echo "LAST_COMMIT_DATE=$FORMATTED_DATE" >> $GITHUB_ENV
+
+      # 构建和打包步骤（按矩阵目标执行）
+      - name: Build for ${{ matrix.target }}
+        run: |
+          # 设置环境变量
+          export OUTPUT_DIR="release/$(
+            if [[ "${{ matrix.target }}" == *"android"* ]] || 
+               [[ "${{ matrix.target }}" == "riscv64-linux-gnu" ]]; then
+              echo "android"
+            else
+              echo "linux"
+            fi
+          )/ReleaseSmall"
+
+          # 执行编译脚本
           chmod +x ./zig-build/*.sh
+          ./zig-build/build_zlm.sh --target=${{ matrix.target }}
 
-          for target in "${targets[@]}"; do
-            echo "==============================="
-            echo "Building target: $target"
-            echo "==============================="
-            ./zig-build/build_zlm.sh --target=$target
+          # 处理输出目录
+          if [ -d "$OUTPUT_DIR" ]; then
+            RELEASE_NAME="ZLMediaKit_${{ matrix.target }}_${{ env.LAST_COMMIT_DATE }}"
+            mkdir -p release/artifacts
+            mv "$OUTPUT_DIR" "release/artifacts/$RELEASE_NAME"
+            tar -czvf "release/artifacts/$RELEASE_NAME.tar.gz" -C "release/artifacts" "$RELEASE_NAME"
+          else
+            echo "::error::Output directory $OUTPUT_DIR not found!"
+            exit 1
+          fi
 
-            if [[ "$target" == *"android"* || "$target" == "riscv64-linux-gnu" ]]; then
-              output_dir="release/android/ReleaseSmall"
-            else
-              output_dir="release/linux/ReleaseSmall"
-            fi
-
-            if [ -d "$output_dir" ]; then
-              artifact_name="ZLMediaKit_${target}_${LAST_COMMIT_DATE}"
-              mkdir -p release/artifacts
-              mv "$output_dir" "release/artifacts/$artifact_name"
-              tar -czvf "release/artifacts/${artifact_name}.tar.gz" -C "release/artifacts" "$artifact_name"
-            else
-              echo "::error::Output directory $output_dir not found for $target!"
-              exit 1
-            fi
-          done
-
-      # 上传工作流产物
+      # 上传产物（升级到 v4）
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
-          path: release/artifacts/*.tar.gz
+          path: |
+            release/artifacts/*.tar.gz
           retention-days: 7
 
-      # 创建 Release
+      # 创建 GitHub Release
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -96,52 +113,26 @@ jobs:
           tag_name: release-${{ env.LAST_COMMIT_DATE }}
           release_name: Release ${{ env.LAST_COMMIT_DATE }}
           body: |
-            Multi-arch Build for ${{ env.LAST_COMMIT_DATE }}
-            Targets:
-            - x86_64-linux-gnu
-            - aarch64-linux-gnu  
-            - aarch64-linux-android
-            - riscv64-linux-gnu
+            Automatic build for commit ${{ github.sha }}
+            Built on: ${{ env.LAST_COMMIT_DATE }}
+            Changes:
+            ${{ github.event.head_commit.message }}
           draft: false
           prerelease: false
-          overwrite: true
+          overwrite: true  # 允许覆盖同日期 Release
 
-      # 批量上传资产
+      # 上传 Release 资产
       - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          upload_url="${{ steps.create_release.outputs.upload_url }}"
-          
-          # 创建计数器
-          count=0
-          total=$(ls release/artifacts/*.tar.gz | wc -l)
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release/artifacts/ZLMediaKit_${{ matrix.target }}_${{ env.LAST_COMMIT_DATE }}.tar.gz
+          asset_name: ZLMediaKit_${{ matrix.target }}_${{ env.LAST_COMMIT_DATE }}.tar.gz
+          asset_content_type: application/gzip          
 
-          for asset in release/artifacts/*.tar.gz; do
-            ((count++))
-            filename=$(basename "$asset")
-            echo "[$count/$total] Uploading $filename"
-
-            # 使用 GitHub API 直接上传
-            response=$(curl -sS \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Content-Type: application/gzip" \
-              --data-binary @"$asset" \
-              -w "%{http_code}" \
-              "$upload_url?name=$filename")
-
-            # 解析响应状态码
-            http_status=${response: -3}
-            if [ "$http_status" -eq 201 ]; then
-              echo "✅ Upload success"
-            else
-              echo "❌ Upload failed (HTTP $http_status)"
-              echo "Response body: ${response%???}"
-              exit 1
-            fi
-          done
-     
-      # 清理工作空间
+      # 清理工作空间（可选）
       - name: Cleanup
         if: always()
         run: rm -rf android-ndk* zig-linux-*
